@@ -1,67 +1,38 @@
-name: Build AriaNg Docker Image
+name: Build and Push Docker Image
 
+# 触发条件：推送到main分支时触发
 on:
-  workflow_dispatch:      # 手动触发
   push:
-    branches: [ main ]    # 主分支推送时触发
-  schedule:
-    - cron: '0 0 * * *'   # 每天UTC 0点（北京时间8点）自动运行
+    branches: [ main ]
 
 jobs:
-  build:
+  build-and-push:
     runs-on: ubuntu-latest
+    
     steps:
-      - name: Checkout AriaNg upstream source
-        uses: actions/checkout@v4
-        with:
-          repository: mayswind/AriaNg   # 拉取上游代码
-          ref: master                   # 上游默认分支
-          path: ariang-source           # 检出到 ariang-source 目录（避免与产物目录混淆）
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-          cache: 'npm'
-          cache-dependency-path: ariang-source/package-lock.json  # 缓存npm依赖加速构建
-
-      - name: Build AriaNg static files
-        run: |
-          cd ariang-source
-          npm ci                          # 安装依赖（严格遵循package-lock）
-          npm run build                   # 执行构建，产物默认在 ariang-source/src/dist
-          # 查看产物目录结构（调试用）
-          ls -la src/dist
-
-      - name: Set up QEMU (for multi-arch build)
-        uses: docker/setup-qemu-action@v3
-
+      # 检出代码
+      - name: Checkout code
+        uses: actions/checkout@v3
+      
+      # 设置Docker Buildx
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-
+        uses: docker/setup-buildx-action@v2
+      
+      # 登录到DockerHub
       - name: Login to DockerHub
-        uses: docker/login-action@v3
+        uses: docker/login-action@v2
         with:
-          username: ${{ secrets.DOCKERHUB_USERNAME }}
-          password: ${{ secrets.DOCKERHUB_TOKEN }}
-
-      - name: Get upstream commit SHA (for tag)
-        id: upstream-sha
-        run: |
-          # 获取上游代码的最新commit SHA作为标签
-          cd ariang-source
-          echo "sha=$(git rev-parse --short HEAD)" >> $GITHUB_OUTPUT
-
-      - name: Build & push multi-arch image
-        uses: docker/build-push-action@v5
+          username: ${{ secrets.DOCKER_HUB_USERNAME }}
+          password: ${{ secrets.DOCKER_HUB_ACCESS_TOKEN }}
+      
+      # 构建并推送镜像
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v4
         with:
-          context: .                                      # 构建上下文为工作流根目录
-          dockerfile: ./Dockerfile                        # 显式指定Dockerfile路径（确保存在）
-          platforms: linux/amd64,linux/arm64,linux/arm/v7 # 支持的架构
+          context: .
           push: true
           tags: |
-            ${{ secrets.DOCKERHUB_USERNAME }}/ariang:latest
-            ${{ secrets.DOCKERHUB_USERNAME }}/ariang:${{ steps.upstream-sha.outputs.sha }}  # 用上游commit SHA作为标签
-          # 缓存构建层加速下次构建
-          cache-from: type=registry,ref=${{ secrets.DOCKERHUB_USERNAME }}/ariang:buildcache
-          cache-to: type=registry,ref=${{ secrets.DOCKERHUB_USERNAME }}/ariang:buildcache,mode=max
+            ${{ secrets.DOCKER_HUB_USERNAME }}/ariang:latest
+            ${{ secrets.DOCKER_HUB_USERNAME }}/ariang:${{ github.sha }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
