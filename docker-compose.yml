@@ -1,0 +1,20 @@
+services:
+  ariang:
+    # 指定要拉取的镜像（确保该镜像已推送至Docker Hub）
+    image: beeseek/ariang:latest
+    # 容器名称
+    container_name: ariang
+    # 端口映射：主机端口:容器端口（与Nginx配置的6880端口一致）
+    ports:
+      - "6886:6886"  # 将主机的6880端口映射到容器的6880端口
+    # 重启策略：容器退出时自动重启
+    restart: always
+    # 容器描述标签
+    labels:
+      - "description=AriaNg static web interface"
+    # 可选：限制资源使用（根据实际需求开启）
+    # deploy:
+    #   resources:
+    #     limits:
+    #       cpus: '0.5'
+    #       memory: 128M
