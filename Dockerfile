@@ -1,8 +1,11 @@
-# 使用官方 Nginx Alpine 镜像
+# 基于 Nginx 镜像
 FROM nginx:alpine
 
-# 把刚才 build 出来的 dist 拷进去
-COPY dist /usr/share/nginx/html
+# 将本地 dist 目录的内容复制到 Nginx 的默认网页目录
+COPY dist/ /usr/share/nginx/html/
 
+# 暴露 80 端口
 EXPOSE 6880
-CMD ["nginx","-g","daemon off;"]
+
+# 启动 Nginx
+CMD ["nginx", "-g", "daemon off;"]
