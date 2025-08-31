@@ -17,7 +17,7 @@ jobs:
         with:
           repository: mayswind/AriaNg   # 直接拉上游
           ref: master                   # 上游分支
-          path: src                     # 放在 ./src
+          path: dist                     # 放在 ./src
 
       - name: Setup Node
         uses: actions/setup-node@v4
@@ -26,7 +26,7 @@ jobs:
 
       - name: Build static files
         run: |
-          cd src
+          cd dist
           npm ci
           npm run build
           # 默认产物在 src/dist 目录
