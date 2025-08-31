@@ -1,13 +1,17 @@
 name: Build and Push Docker Image
 
-# 触发条件：推送到main分支时触发
+# 触发条件：推送到main分支或手动触发
 on:
   push:
     branches: [ main ]
+  workflow_dispatch:  # 允许手动触发
 
 jobs:
   build-and-push:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
     
     steps:
       # 检出代码
@@ -25,14 +29,35 @@ jobs:
           username: ${{ secrets.DOCKER_HUB_USERNAME }}
           password: ${{ secrets.DOCKER_HUB_ACCESS_TOKEN }}
       
+      # 提取元数据（标签、标签说明等）
+      - name: Extract Docker metadata
+        id: meta
+        uses: docker/metadata-action@v4
+        with:
+          images: ${{ secrets.DOCKER_HUB_USERNAME }}/ariang
+          tags: |
+            type=sha,format=short
+            type=ref,event=branch
+            type=raw,value=latest,enable={{is_default_branch}}
+      
       # 构建并推送镜像
       - name: Build and push Docker image
         uses: docker/build-push-action@v4
         with:
           context: .
           push: true
-          tags: |
-            ${{ secrets.DOCKER_HUB_USERNAME }}/ariang:latest
-            ${{ secrets.DOCKER_HUB_USERNAME }}/ariang:${{ github.sha }}
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
+      
+      # 镜像安全扫描
+      - name: Scan Docker image
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: ${{ secrets.DOCKER_HUB_USERNAME }}/ariang:latest
+          format: 'table'
+          exit-code: '1'
+          ignore-unfixed: true
+          severity: 'CRITICAL,HIGH'
+    
